@@ -1,6 +1,6 @@
 # NETCORE DYNAMIC FILTER
 
-[![NuGet](https://img.shields.io/nuget/v/Cypretex.Data.Filters.svg?maxAge=259200&style=flat)](http://www.nuget.org/packages/Cypretex.Data.Filters/)
+[![NuGet](https://img.shields.io/nuget/v/Cypretex.Data.Filters?maxAge=259200&style=flat)](https://www.nuget.org/packages/Cypretex.Data.Filters/)
 
 This package allows you to add dynamic filters to an IQueryable collections, it works with any collection that supports IQueryable (IEnumerable local collections, EF, etc)
 

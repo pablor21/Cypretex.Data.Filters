@@ -4,8 +4,14 @@
     <PackOnBuild>true</PackOnBuild>
     <Authors>Pablo Ramirez &lt;pablor21@gmail.com&gt;</Authors>
     <Copyright>Pablo Ramirez @2020</Copyright>
-    <PackageTags>Linq Query</PackageTags>
+    <PackageTags>Linq Query Dynamic EntityFramework</PackageTags>
     <Description>Dynamic query builder for Linq</Description>
+    <PackageLicenseUrl>https://github.com/pablor21/Cypretex.Data.Filters/blob/master/LICENSE</PackageLicenseUrl>
+    <Owners>Pablo Ramirez</Owners>
+    <PackageProjectUrl>https://github.com/pablor21/Cypretex.Data.Filters</PackageProjectUrl>
+    <Summary>Dynamic query builder for linq</Summary>
+    <Title>Cypretex.Data.Filters</Title>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="Parsers\" />
