@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <PackOnBuild>true</PackOnBuild>
+    <Authors>Pablo Ramirez &lt;pablor21@gmail.com&gt;</Authors>
+    <Copyright>Pablo Ramirez @2020</Copyright>
+    <PackageTags>Linq Query</PackageTags>
+    <Description>Dynamic query builder for Linq</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="Parsers\" />
+    <Folder Include="Utils\" />
+  </ItemGroup>
+
+</Project>
