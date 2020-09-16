@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<package >
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
   <metadata>
     <id>Cypretex.Data.Filters</id>
     <version>1.0.1</version>
@@ -9,10 +9,16 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <license type="expression">MIT</license>
     <projectUrl>https://github.com/pablor21/Cypretex.Data.Filters</projectUrl>
-    <repository type="git" url="https://github.com/pablor21/Cypretex.Data.Filters" branch="master"/>
+    <repository type="git" url="https://github.com/pablor21/Cypretex.Data.Filters" branch="master" />
     <description>Dynamic query builder for linq</description>
     <releaseNotes>Add support for selects.</releaseNotes>
     <copyright>Copyright 2020</copyright>
     <tags>Linq Query Dynamic EntityFramework</tags>
   </metadata>
+  <files>
+    <!--NETStandard-->
+    <file src="..\src\bin\Release\netstandard2.1\Cypretex.Data.Filters.dll" target="lib\netstandard2.1" />
+    <file src="..\src\bin\Release\netstandard2.1\Cypretex.Data.Filters.pdb" target="lib\netstandard2.1" />
+    <file src="..\src\bin\Release\netstandard2.1\Cypretex.Data.Filters.deps.json" target="lib\netstandard2.1" />
+  </files>
 </package>
