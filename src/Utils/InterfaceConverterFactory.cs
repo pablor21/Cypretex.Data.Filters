@@ -36,6 +36,9 @@ namespace Cypretex.Data.Filters.Utils
         }
 
         public override void Write(Utf8JsonWriter writer, I value, JsonSerializerOptions options) {
+            if(value==null){
+                throw new Exception("Value cannot be null!");
+            }
             JsonSerializer.Serialize<M>(writer, (M)value, options);
         }
     }

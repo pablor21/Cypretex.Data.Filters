@@ -14,7 +14,7 @@ namespace Cypretex.Data.Filters.Parsers
         /// <param name="source"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public IQueryable<T> Parse<T>(IFilter filter, IQueryable<T> source);
+        public IQueryable<T> Parse<T>(IFilter filter, IQueryable<T> source) where T : class, new();
 
 
         /// <summary>
@@ -24,6 +24,6 @@ namespace Cypretex.Data.Filters.Parsers
         /// <param name="source"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public Task<IQueryable<T>> ParseAsync<T>(IFilter filter, IQueryable<T> source);
+        public Task<IQueryable<T>> ParseAsync<T>(IFilter filter, IQueryable<T> source) where T : class, new();
     }
 }

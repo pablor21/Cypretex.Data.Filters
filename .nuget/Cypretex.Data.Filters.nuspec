@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>Cypretex.Data.Filters</id>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <title>Cypretex.Data.Filters</title>
     <authors>Pablo Ramirez &lt;pablor21@gmail.com&gt;</authors>
     <owners>Pablo Ramirez</owners>
@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/pablor21/Cypretex.Data.Filters</projectUrl>
     <repository type="git" url="https://github.com/pablor21/Cypretex.Data.Filters" branch="master"/>
     <description>Dynamic query builder for linq</description>
-    <releaseNotes>Inital package publish.</releaseNotes>
+    <releaseNotes>Add support for selects.</releaseNotes>
     <copyright>Copyright 2020</copyright>
     <tags>Linq Query Dynamic EntityFramework</tags>
   </metadata>

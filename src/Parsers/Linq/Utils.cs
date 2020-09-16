@@ -14,6 +14,8 @@ namespace Cypretex.Data.Filters.Parsers.Linq
 
         public static readonly MethodInfo AsQueryableMethod = QueryableType.GetRuntimeMethods().FirstOrDefault(
         method => method.Name == "AsQueryable" && method.IsStatic);
+        public static readonly MethodInfo AsListMethod = QueryableType.GetRuntimeMethods().FirstOrDefault(
+        method => method.Name == "ToList" && method.IsStatic);
 
 
         public static Type[] AvailableCastTypes =
@@ -53,14 +55,16 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             typeof(string)
         };
 
-        public static bool IsValidType(Type type){
+        public static bool IsValidType(Type type)
+        {
             return AvailableCastTypes.Contains(type) || type.GetTypeInfo().IsEnum;
         }
 
         public static object TryCastFieldValueType(object value, Type type)
         {
-            if (value == null || !IsValidType(type)){
-                var v=(value!=null?value.GetType().Name:"Null");
+            if (value == null || !IsValidType(type))
+            {
+                var v = (value != null ? value.GetType().Name : "Null");
                 throw new InvalidCastException($"Cannot convert {v} to type {type.Name}.");
             }
 
@@ -141,6 +145,12 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                         prop);
         }
 
+        public static Expression AsList(Expression prop)
+        {
+            return Expression.Call(
+                        AsListMethod.MakeGenericMethod(prop.Type.GenericTypeArguments.Single()),
+                        prop);
+        }
 
 
         public static bool IsEnumerable(Expression prop)
@@ -164,9 +174,11 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             return t;
         }
 
-        public static void CheckType(Expression prop, WhereCondition condition, Type requiredType){
-            if(!requiredType.IsAssignableFrom(prop.Type)){
-               throw new InvalidCastException($"{condition.Field}: {condition.Comparator} can be applied to {requiredType.Name} only!");
+        public static void CheckType(Expression prop, WhereCondition condition, Type requiredType)
+        {
+            if (!requiredType.IsAssignableFrom(prop.Type))
+            {
+                throw new InvalidCastException($"{condition.Field}: {condition.Comparator} can be applied to {requiredType.Name} only!");
             }
         }
 

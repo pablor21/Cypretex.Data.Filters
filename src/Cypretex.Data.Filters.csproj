@@ -12,6 +12,7 @@
     <Summary>Dynamic query builder for linq</Summary>
     <Title>Cypretex.Data.Filters</Title>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>1.0.1</Version>
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="Parsers\"/>
@@ -20,5 +21,6 @@
   <ItemGroup>
     <PackageReference Include="NETStandard.Library" Version="2.0.3"/>
     <PackageReference Include="System.Text.Json" Version="4.7.2"/>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0"/>
   </ItemGroup>
 </Project>

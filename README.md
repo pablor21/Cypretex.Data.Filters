@@ -18,7 +18,8 @@ PM> Install-Package Cypretex.Data.Filters
 - Supports chain of where clauses (AND, OR, NOT)
 - Supports OrderBy statments
 - Supports Skip and Take for pagination
-- Supports Include filters
+- Supports Include filters (EF only) => Soon!
+- Supports Select of subset of properties (deep over the child objects and collections) 
 
 ## Available Data Types
 
@@ -77,6 +78,15 @@ The following comparators are available:
 * NOT_EMPTY
 * REGEX
 * NOT_REGEX
+
+## Select a subset of properties (since V1.0.1)
+
+The filter accepts a string for the selection of a subset of properties of objects. The select must be in the form:
+
+```
+string select="Id,Name,Child[Id,ChildName,DeepChild[Id]]"
+```
+The properties of the child objects can be selected with the name of the child property and the subproperties wrapped by [ and ]. ** Ex: Child[Id] **
 
 ## Usage
 
@@ -160,6 +170,7 @@ You can convert the following json string in the filter using System.Text.Json a
 This is a json representation of a filter
 ```
 {
+  "select": "Id,Cars[Id,Owner[Id]]"
   "where": {
     "Field": "Name",
     "Comparator": "EQ",
@@ -194,5 +205,5 @@ Filter f = JsonSerializer.Deserialize<Filter>(json, options);
 ```
 
 ## TODO
-- [ ] Add a Include filter
-- [ ] Make extensive tests
+- [X] Add a Include filter
+- [-] Make extensive tests

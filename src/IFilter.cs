@@ -42,6 +42,11 @@ namespace Cypretex.Data.Filters
         /// <value></value>
         public int Take { get; set; }
 
+        /// <summary>
+        /// The select fields to include
+        /// </summary>
+        /// <value></value>
+        public string Properties { get; set; }
 
         /// <summary>
         /// Gets if the filter has pagination
@@ -141,7 +146,7 @@ namespace Cypretex.Data.Filters
         /// Apply the filter to a queryable list
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public IQueryable<T> Apply<T>(IQueryable<T> source) where T : class
+        public IQueryable<T> Apply<T>(IQueryable<T> source) where T : class, new()
         {
             Validate();
             return this.FilterParser.Parse(this, source);
@@ -151,7 +156,7 @@ namespace Cypretex.Data.Filters
         /// Apply the filter to a queryable list
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public Task<IQueryable<T>> ApplyAsync<T>(IQueryable<T> source) where T : class
+        public Task<IQueryable<T>> ApplyAsync<T>(IQueryable<T> source) where T : class, new()
         {
             Validate();
             return this.FilterParser.ParseAsync(this, source);
