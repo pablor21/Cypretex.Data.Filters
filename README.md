@@ -205,5 +205,5 @@ Filter f = JsonSerializer.Deserialize<Filter>(json, options);
 ```
 
 ## TODO
-- [X] Add a Include filter
+- [-] Add a Include filter (Soon, requires support for include, for example EF)
 - [-] Make extensive tests
