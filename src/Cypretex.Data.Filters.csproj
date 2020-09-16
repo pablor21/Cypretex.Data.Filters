@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <PackOnBuild>true</PackOnBuild>
     <Authors>Pablo Ramirez &lt;pablor21@gmail.com&gt;</Authors>
     <Copyright>Pablo Ramirez @2020</Copyright>
@@ -18,9 +18,9 @@
     <Folder Include="Parsers\"/>
     <Folder Include="Utils\"/>
   </ItemGroup>
-  <ItemGroup>
+  <!-- <ItemGroup>
     <PackageReference Include="NETStandard.Library" Version="2.0.3"/>
     <PackageReference Include="System.Text.Json" Version="4.7.2"/>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0"/>
-  </ItemGroup>
+  </ItemGroup> -->
 </Project>
