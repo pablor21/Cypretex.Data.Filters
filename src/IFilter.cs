@@ -11,6 +11,12 @@ namespace Cypretex.Data.Filters
     {
 
         /// <summary>
+        /// The name of the parameter for the filter
+        /// </summary>
+        /// <value></value>
+        public string As { get; set; }
+
+        /// <summary>
         /// The where clause to apply
         /// </summary>
         /// <value></value>

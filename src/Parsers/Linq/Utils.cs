@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -16,7 +17,8 @@ namespace Cypretex.Data.Filters.Parsers.Linq
         method => method.Name == "AsQueryable" && method.IsStatic);
         public static readonly MethodInfo AsListMethod = QueryableType.GetRuntimeMethods().FirstOrDefault(
         method => method.Name == "ToList" && method.IsStatic);
-
+        private static readonly MethodInfo changeTypeMethod = typeof(Convert).GetMethod("ChangeType",
+                    new Type[] { typeof(object), typeof(Type) });
 
         public static Type[] AvailableCastTypes =
         {
@@ -100,7 +102,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             return args[1];
         }
 
-        public static PropertyInfo GetDeclaringProperty(Type t, string name)
+        public static PropertyInfo GetPropertyInfo(Type t, string name)
         {
             var p = t.GetRuntimeProperties().SingleOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
@@ -116,7 +118,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             return p;
         }
 
-        public static PropertyInfo GetDeclaringProperty(Expression e, string name)
+        public static PropertyInfo GetPropertyInfo(Expression e, string name)
         {
             var t = e.Type;
             var p = t.GetRuntimeProperties().SingleOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -158,12 +160,87 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             return prop.Type.GetTypeInfo().ImplementedInterfaces.FirstOrDefault(x => x.Name == "IEnumerable") != null;
         }
 
+        public static bool IsRefCondition(WhereCondition condition)
+        {
+
+            return (condition.Value != null && condition.Value.GetType() == typeof(string) && condition.Value.ToString().StartsWith("@") && (!condition.Value.ToString().StartsWith("@@")));
+        }
+
+        public static Expression ConvertToNullable(Expression prop)
+        {
+            //convert the property to nullable type
+            Type type = prop.Type;
+            try
+            {
+                type = typeof(Nullable<>).MakeGenericType(prop.Type);
+                prop = Expression.Convert(prop, type);
+            }
+            catch { }
+            return prop;
+        }
+
+        public static object ParseValue(object value)
+        {
+            if (value != null)
+            {
+                if (value.GetType() == StringType)
+                {
+                    if (((string)value).StartsWith("@@"))
+                    {
+                        return ((string)value).Substring(1);
+                    }
+                }
+            }
+            return value;
+        }
+
+        public static bool ConditionAcceptNullValues(WhereCondition condition)
+        {
+            if (condition == null || condition.Value == null || IsRefCondition(condition))
+            {
+                return true;
+            }
+            switch (condition.Comparator.ToUpperInvariant())
+            {
+                case WhereComparator.N:
+                case WhereComparator.IS_NULL:
+                case WhereComparator.NULL_OR_EMPTY:
+                case WhereComparator.NLEMP:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static Expression ToDynamicParameterExpressionOfType(Expression expression, Type type)
+        {
+            if (type == expression.Type)
+            {
+                return expression;
+            }
+
+            Type conversionType = Nullable.GetUnderlyingType(type) ?? type;
+
+            // if (conversionType == expression.Type)
+            // {
+            //     return expression;
+            // }
+
+            Expression targetType = Expression.Constant(conversionType);
+            Expression convertedValue = Expression.Convert(expression, typeof(object));
+            return Expression.Convert(Expression.Call(changeTypeMethod, convertedValue, targetType), type);
+        }
+
+
         public static Expression ToStaticParameterExpressionOfType(object obj, Type type)
-            => Expression.Convert(
-                Expression.Property(
-                    Expression.Constant(new { obj }),
-                    "obj"),
-                type);
+        {
+            return Expression.Convert(Expression.Property(Expression.Constant(new { obj }), "obj"), type);
+        }
+        // => obj == null || obj.GetType() != type ? Expression.Convert(
+        //     Expression.Property(
+        //         Expression.Constant(new { obj }),
+        //         "obj"),
+        //     type) : Expression.Constant(obj);
 
         public static Type GetNotNullableType(Type t)
         {
@@ -172,6 +249,35 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                 return Nullable.GetUnderlyingType(t);
             }
             return t;
+        }
+
+        public static Type GetEnumerableTypeArg(Type type)
+        {
+            return type.GetGenericArguments()[0];
+        }
+
+        public static bool IsEnumerable(Type type)
+        {
+            return type.IsGenericType
+                && type.GetGenericTypeDefinition() == typeof(IEnumerable<>);
+        }
+
+        public static Type GetIEnumerableImpl(Type type)
+        {
+            // Get IEnumerable implementation. Either type is IEnumerable<T> for some T, 
+            // or it implements IEnumerable<T> for some T. We need to find the interface.
+            if (IsEnumerable(type))
+                return type;
+            Type[] t = type.FindInterfaces((m, o) => IsEnumerable(m), null);
+            return t[0];
+        }
+
+        public static void CheckEnumerable(Expression prop, WhereCondition condition)
+        {
+            if (!IsEnumerable(prop))
+            {
+                throw new InvalidCastException($"{condition.Field}: {condition.Comparator} can be applied to Enumerable only!");
+            }
         }
 
         public static void CheckType(Expression prop, WhereCondition condition, Type requiredType)

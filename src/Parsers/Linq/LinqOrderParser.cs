@@ -34,7 +34,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                         && method.IsGenericMethodDefinition
                         && method.GetGenericArguments().Length == 2
                         && method.GetParameters().Length == 2);
-        public static IOrderedQueryable<T> ParseOrder<T>(IList<string> order, IQueryable<T> source)
+        public static IQueryable<T> ParseOrder<T>(IList<string> order, IQueryable<T> source)
         {
             Type type = typeof(T);
 
@@ -47,7 +47,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                     index++;
                 }
             }
-            return (IOrderedQueryable<T>)source;
+            return source;
         }
 
         public static IOrderedQueryable<T> ParseOrder<T>(string field, IQueryable<T> source, int index = 0)
@@ -65,7 +65,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
 
             for (int i = 0; i < spl.Length; i++)
             {
-                PropertyInfo pi = Utils.GetDeclaringProperty(type, spl[i]);
+                PropertyInfo pi = Utils.GetPropertyInfo(type, spl[i]);
                 expr = Expression.Property(expr, pi);
                 type = pi.PropertyType;
             }

@@ -1,25 +1,27 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Cypretex.Data.Filters.Parsers.Linq
 {
-    public static class LinqWhereExpressionBuilder
+    public class LinqWhereExpressionBuilder
     {
         /// <summary>
         /// IEnumerable Any method
         /// </summary>
         /// <returns></returns>
         public static MethodInfo EnumerableAnyMethod = typeof(Enumerable).GetMethods().Single(m => m.Name == "Any" && m.GetParameters().Length == 2);
-
-
+        public static MethodInfo EnumerableAnyMethodNoParameters = typeof(Enumerable).GetMethods().Single(m => m.Name == "Any" && m.GetParameters().Length == 1);
         public static readonly Type StringType = typeof(string);
         public static readonly Type RegexType = typeof(Regex);
+        public static readonly Type EnumerableType = typeof(IEnumerable<>);
+        //Expression visitor instance
+        private readonly Visitor visitor;
 
         public static readonly Dictionary<string, MethodInfo> StringMethods = new Dictionary<string, MethodInfo>(){
             {"StartsWith", StringType.GetRuntimeMethod("StartsWith", new[] { StringType, typeof(StringComparison) })},
@@ -35,27 +37,53 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             {"IsMatch", RegexType.GetRuntimeMethod("IsMatch", new[]{StringType, typeof(RegexOptions)})}
         };
 
-
-        public static Expression<Func<T, bool>> BuildPredicate<T>(WhereCondition condition, string suffix = "")
+        public static IQueryable<T> Parse<T>(WhereCondition condition, IQueryable<T> source, string paramName = null)
         {
-            ParameterExpression e = Expression.Parameter(typeof(T), typeof(T).Name + suffix);
-            Expression expression = AddExpression<T>(e, null, condition, suffix);
-            return (Expression<Func<T, bool>>)MakeLambda(e, expression);
+            Expression<Func<T, bool>> predicate = new LinqWhereExpressionBuilder().BuildPredicate<T>(condition, paramName);
+            if (predicate != null)
+            {
+                source = source.Where(predicate);
+            }
+            else
+            {
+                source = source.AsQueryable<T>();
+            }
+            return source;
         }
 
-        public static Expression AddExpression<T>(ParameterExpression e, Expression expression, WhereCondition condition, string suffix = "")
+
+        public LinqWhereExpressionBuilder()
+        {
+            this.visitor = new Visitor();
+        }
+
+        public Expression<Func<T, bool>> BuildPredicate<T>(WhereCondition condition, string paramName = null)
+        {
+            paramName = String.IsNullOrEmpty(paramName) ? typeof(T).Name : paramName;
+            ParameterExpression parameter = Expression.Parameter(typeof(T), paramName);
+            ParameterExpression original = Expression.Parameter(typeof(T), paramName);
+            Expression expression = AddExpression<T>(parameter, parameter, null, condition);
+            Expression<Func<T, bool>> lambda = null;
+            if (parameter != null && expression != null)
+            {
+                lambda = (Expression<Func<T, bool>>)MakeLambda(expression, parameter);
+            }
+            return lambda;
+        }
+
+        public Expression AddExpression<T>(ParameterExpression parameter, ParameterExpression rootParameter, Expression expression, WhereCondition condition)
         {
             Expression newEpxression = expression;
             if (condition.HasFieldCondition)
             {
-                newEpxression = GetExpressionForCondition(e, condition, suffix);
+                newEpxression = GetExpressionForCondition(parameter, rootParameter, condition);
             }
 
             int i = 1;
             //AND conditions
             foreach (WhereCondition cond in condition.And)
             {
-                Expression e1 = AddExpression<T>(e, newEpxression, cond, suffix + i);
+                Expression e1 = AddExpression<T>(parameter, rootParameter, newEpxression, cond);
                 var args = new object[] { newEpxression, e1 };
                 if (newEpxression != null)
                 {
@@ -73,7 +101,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             //OR conditions
             foreach (WhereCondition cond in condition.Or)
             {
-                Expression e1 = AddExpression<T>(e, newEpxression, cond, suffix + i);
+                Expression e1 = AddExpression<T>(parameter, rootParameter, newEpxression, cond);
                 var args = new object[] { newEpxression, e1 };
                 if (newEpxression != null)
                 {
@@ -89,7 +117,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             //NOT conditions
             foreach (WhereCondition cond in condition.Not)
             {
-                Expression e1 = Expression.Not(AddExpression<T>(e, newEpxression, cond, suffix + i));
+                Expression e1 = AddExpression<T>(parameter, rootParameter, newEpxression, cond);
                 var args = new object[] { newEpxression, e1 };
                 if (newEpxression != null)
                 {
@@ -105,16 +133,30 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             return newEpxression;
         }
 
-        private static Expression GetExpressionForCondition(Expression parameter, WhereCondition condition, string suffix = "")
+        private Expression GetExpressionForCondition(Expression parameter, Expression rootParameter, WhereCondition condition)
         {
             Expression resultExpression = null;
-            Expression childParameter = parameter, predicate = Expression.IsTrue(Expression.Constant(true));
+            Expression childParameter = parameter;
+            Expression predicate = Expression.IsTrue(Expression.Constant(true));
             Type childType = null;
 
             string[] properties = condition.Field.Split(".");
             if (properties.Count() == 1)
             {
-                resultExpression = BuildCondition(parameter, condition);
+
+                if (Utils.IsRefCondition(condition))
+                {
+
+                    Expression prop = Expression.Property(childParameter, properties[0]);
+                    resultExpression = BuildSubqueryComparsion(prop, null, rootParameter, condition);
+
+                }
+                else
+                {
+                    resultExpression = BuildCondition(parameter, condition);
+                    resultExpression = Expression.Condition(Expression.NotEqual(childParameter, Expression.Constant(null, childParameter.Type)), resultExpression, Expression.Equal(childParameter, Utils.ToStaticParameterExpressionOfType(condition.Value, childParameter.Type)));
+
+                }
             }
             else
             {
@@ -122,7 +164,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                 var isCollection = Utils.IsEnumerable(parameter);
                 if (isCollection)
                 {
-                    childType = parameter.Type.GetGenericArguments()[0];
+                    childType = Utils.GetEnumerableTypeArg(parameter.Type);
                     childParameter = Expression.Parameter(childType, childType.Name);
                 }
                 else
@@ -132,54 +174,70 @@ namespace Cypretex.Data.Filters.Parsers.Linq
 
                 //skip current property and get navigation property expression recursivly
                 var innerProperties = string.Join(".", properties.Skip(1).ToList());
-                predicate = GetExpressionForCondition(childParameter, new WhereCondition()
+                predicate = GetExpressionForCondition(childParameter, rootParameter, new WhereCondition()
                 {
                     Field = innerProperties,
                     Comparator = condition.Comparator,
                     Value = condition.Value
-                }, suffix);
+                });
 
-                if (condition.Value != null)
-                {
-                    predicate = Expression.AndAlso(Expression.NotEqual(childParameter, Expression.Constant(null, childParameter.Type)), predicate);
-                }
+
+
+
 
                 if (isCollection)
                 {
                     //build subquery
-                    resultExpression = BuildSubQuery(parameter, childType, MakeLambda(childParameter, predicate));
+                    resultExpression = BuildSubQuery(parameter, childType, MakeLambda(predicate, (ParameterExpression)childParameter));
+                    //null-check
+                    Expression falseExpression = Utils.ConditionAcceptNullValues(condition) ? Expression.Equal(parameter, Expression.Constant(null, parameter.Type)) : Expression.Equal(Expression.Constant(true), Expression.Constant(false));
+                    resultExpression = Expression.Condition(Expression.NotEqual(parameter, Expression.Constant(null, parameter.Type)), resultExpression, falseExpression);
+
                 }
                 else
                 {
                     resultExpression = predicate;
+                    //null-check
+                    Expression falseExpression = Utils.ConditionAcceptNullValues(condition) ? Expression.Equal(childParameter, Expression.Constant(null, childParameter.Type)) : Expression.Equal(Expression.Constant(true), Expression.Constant(false));
+                    resultExpression = Expression.Condition(Expression.NotEqual(childParameter, Expression.Constant(null, childParameter.Type)), resultExpression, falseExpression);
                 }
 
             }
+
+
 
             return resultExpression;
         }
 
 
-        private static Expression BuildSubQuery(Expression parameter, Type childType, Expression predicate)
+        private Expression BuildSubQuery(Expression parameter, Type childType, Expression predicate)
         {
             parameter = Utils.AsQueryable(parameter);
             var anyMethod = EnumerableAnyMethod.MakeGenericMethod(childType);
             predicate = Expression.Call(anyMethod, parameter, predicate);
             return predicate;
         }
-        private static Expression BuildCondition(Expression parameter, WhereCondition condition)
+        private Expression BuildCondition(Expression parameter, WhereCondition condition)
         {
-            var childProperty = parameter.Type.GetProperty(condition.Field);
-            Expression prop = Expression.Property(parameter, childProperty);
-            var predicate = BuildComparsion(prop, condition);
+
+            Expression predicate = null;
+            PropertyInfo childProperty = null;
+            childProperty = Utils.GetPropertyInfo(parameter.Type, condition.Field);
+            Expression prop = Utils.ConvertToNullable(Expression.Property(parameter, childProperty));
+
+            //convert the property to nullable type
+            predicate = BuildComparsion(prop, condition);
+
+
             if (predicate == null)
             {
                 predicate = Expression.IsTrue(Expression.Constant(true));
             }
+
             return predicate;
         }
 
-        private static Expression BuildComparsion(Expression prop, WhereCondition condition)
+        private Expression BuildComparsion(Expression prop, WhereCondition condition)
         {
             switch (condition.Comparator.ToUpperInvariant())
             {
@@ -253,12 +311,63 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             }
         }
 
+        private Expression BuildSubqueryComparsion(Expression leftProperty, Expression rightProperty, Expression rootParameter, WhereCondition condition)
+        {
+            Expression predicate = null;
+            string rightFieldNames = (((string)condition.Value).StartsWith("@") ? ((string)condition.Value).Substring(1) : (string)condition.Value);
+            string[] properties = rightFieldNames.Split(".");
+
+            PropertyInfo rightProprertyInfo = null;
+            rightProperty = rightProperty ?? rootParameter;
+            Expression notNullExpression = Expression.NotEqual(rightProperty, Expression.Constant(null, rightProperty.Type));
+
+
+            rightProprertyInfo = Utils.GetPropertyInfo(rightProperty.Type, properties[0]);
+            rightProperty = Expression.Property(rightProperty, properties[0]);
+
+            if (properties.Count() == 1)
+            {
+
+                rightProperty = Utils.ConvertToNullable(rightProperty);
+
+                predicate = BuildComparsion(Utils.ConvertToNullable(leftProperty), new WhereCondition()
+                {
+                    Field = condition.Field,
+                    Comparator = condition.Comparator,
+                    Value = Expression.Condition(notNullExpression, rightProperty, Expression.Constant(null, rightProperty.Type))
+                });
+            }
+            else
+            {
+                ParameterExpression childParameter = Expression.Parameter(rightProperty.Type, rightProperty.Type.Name);
+                if (Utils.IsEnumerable(childParameter))
+                {
+                    throw new InvalidOperationException($"The referenced field:{properties[0]} cannot be a collection!");
+
+                }
+                else
+                {
+                    predicate = BuildSubqueryComparsion(leftProperty, rightProperty, rootParameter, new WhereCondition()
+                    {
+                        Field = condition.Field,
+                        Comparator = condition.Comparator,
+                        Value = string.Join(".", properties.Skip(1))
+                    });
+                }
+
+            }
+
+
+            return predicate;
+        }
+
         private static Expression MakeStringExpression(Expression prop, MethodInfo method, WhereCondition condition)
         {
             Utils.CheckType(prop, condition, StringType);
             Expression parameter = ConvertParameter(prop, condition);
             return Expression.Call(prop, method, parameter, Expression.Constant(StringComparison.CurrentCultureIgnoreCase));
         }
+
 
         private static Expression MakeStringBetweenExpression(Expression prop, Expression cond1, Expression cond2, WhereCondition condition)
         {
@@ -275,6 +384,40 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                 )
             {
                 return Negate(expression);
+            }
+            return expression;
+        }
+
+        private static Expression MakeEnumerableComparatorExpression(Expression prop, WhereCondition condition)
+        {
+            Utils.CheckEnumerable(prop, condition);
+            Type cType = Utils.GetIEnumerableImpl(prop.Type);
+            Expression parameter = Expression.Convert(prop, cType);
+
+
+            MethodInfo method = EnumerableAnyMethodNoParameters.MakeGenericMethod(Utils.GetEnumerableTypeArg(cType));
+            Expression compareExpression = Expression.Call(method, parameter);
+            Expression expression = null;
+            switch (condition.Comparator.ToUpperInvariant())
+            {
+                case WhereComparator.NULL_OR_EMPTY:
+                case WhereComparator.NLEMP:
+                    expression = Expression.OrElse(IsNull(prop, condition), Expression.Not(compareExpression));
+                    break;
+                case WhereComparator.NOT_NULL_OR_EMPTY:
+                case WhereComparator.NNLEMP:
+                    expression = Expression.AndAlso(IsNotNull(prop, condition), compareExpression);
+                    break;
+                case WhereComparator.EMPTY:
+                case WhereComparator.EMP:
+                    expression = Expression.AndAlso(IsNotNull(prop, condition), Expression.Not(compareExpression));
+                    break;
+                case WhereComparator.NOT_EMPTY:
+                case WhereComparator.NEMP:
+                    expression = Expression.AndAlso(IsNotNull(prop, condition), compareExpression);
+                    break;
+                default:
+                    throw new InvalidOperationException($"The operator {condition.Comparator} is not applicable to {condition.Field}!");
             }
             return expression;
         }
@@ -312,13 +455,25 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                 default:
                     throw new InvalidOperationException($"The operator {condition.Comparator} is not applicable to {condition.Field}!");
             }
-            Console.WriteLine(expression);
             return expression;
         }
 
         public static Expression ConvertParameter(Expression prop, WhereCondition condition)
         {
-            return Utils.ToStaticParameterExpressionOfType(Utils.TryCastFieldValueType(condition.Value, prop.Type), prop.Type);
+
+            if (condition.Value != null && condition.Value is Expression)
+            {
+                //return condition.Value;
+                return Utils.ToDynamicParameterExpressionOfType(condition.Value, prop.Type);
+            }
+
+            if (condition.Value == null)
+            {
+                return Utils.ToStaticParameterExpressionOfType(null, prop.Type);
+            }
+
+
+            return Utils.ToStaticParameterExpressionOfType(Utils.TryCastFieldValueType(Utils.ParseValue(condition.Value), prop.Type), prop.Type);
         }
 
         private static Expression IsEqual(Expression prop, WhereCondition condition)
@@ -409,12 +564,20 @@ namespace Cypretex.Data.Filters.Parsers.Linq
 
         private static Expression IsEmpty(Expression prop, WhereCondition condition)
         {
+            if (Utils.IsEnumerable(prop))
+            {
+                return MakeEnumerableComparatorExpression(prop, condition);
+            }
             return Expression.Equal(prop, Utils.ToStaticParameterExpressionOfType(string.Empty, prop.Type));
         }
 
 
         private static Expression IsNullOrEmpty(Expression prop, WhereCondition condition)
         {
+            if (Utils.IsEnumerable(prop))
+            {
+                return MakeEnumerableComparatorExpression(prop, condition);
+            }
             return Expression.OrElse(IsNull(prop, condition), IsEmpty(prop, condition));
         }
 
@@ -425,6 +588,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
 
         private static Expression IsNotNullOrEmpty(Expression prop, WhereCondition condition)
         {
+
             return Expression.AndAlso(IsNotNull(prop, condition), IsNotEmpty(prop, condition));
         }
 
@@ -452,7 +616,6 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             {
                 return Negate(expression);
             }
-            Console.WriteLine(expression);
             return expression;
         }
 
@@ -527,27 +690,18 @@ namespace Cypretex.Data.Filters.Parsers.Linq
         }
 
 
-        private static Expression MakeLambda(Expression parameter, Expression predicate)
+        protected Expression MakeLambda(Expression predicate, params ParameterExpression[] parameters)
         {
-            var resultParameterVisitor = new ParameterVisitor();
-            resultParameterVisitor.Visit(parameter);
-            var resultParameter = resultParameterVisitor.Parameter;
-            return Expression.Lambda(predicate, (ParameterExpression)resultParameter);
-        }
 
+            List<ParameterExpression> resultParameters = new List<ParameterExpression>();
+            foreach (Expression parameter in parameters)
+            {
 
-        private class ParameterVisitor : ExpressionVisitor
-        {
-            public Expression Parameter
-            {
-                get;
-                private set;
+                resultParameters.Add(((ParameterExpression)visitor.Visit(parameter)));
             }
-            protected override Expression VisitParameter(ParameterExpression node)
-            {
-                Parameter = node;
-                return node;
-            }
+            LambdaExpression expression = Expression.Lambda(visitor.Visit(predicate), parameters);
+            visitor.Visit(expression.Body);
+            return visitor.Visit(expression);
         }
 
     }

@@ -20,8 +20,13 @@ namespace Cypretex.Data.Filters.Parsers.Linq
         }
     }
 
-    public static class LinqSelectParser
+    public class LinqSelectParser
     {
+
+
+
+        //Expression visitor instance
+        private readonly Visitor visitor;
 
         /// <summary>
         /// Parse the selection clause
@@ -31,17 +36,24 @@ namespace Cypretex.Data.Filters.Parsers.Linq
         /// <param name="suffix"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public static IQueryable<T> ParseSelect<T>(string properties, IQueryable<T> source, string suffix = "")
+        public static IQueryable<T> ParseSelect<T>(string properties, IQueryable<T> source, string paramName = null)
         where T : class, new()
         {
             if (String.IsNullOrEmpty(properties) || properties.Equals("*"))
             {
                 return source;
             }
-            List<SelectEntry> props = ParsePropertyNames(properties.Replace(" ", String.Empty));
-            Expression<Func<T, T>> expression = (Expression<Func<T, T>>)Process<T, T>(props, typeof(T), typeof(T), suffix);
+            LinqSelectParser parser = new LinqSelectParser();
+            List<SelectEntry> props = parser.ParsePropertyNames(properties.Replace(" ", String.Empty));
+            Expression<Func<T, T>> expression = (Expression<Func<T, T>>)parser.Process<T, T>(props, typeof(T), typeof(T), paramName);
             return source.Select<T, T>(expression);
         }
+
+        public LinqSelectParser()
+        {
+            this.visitor = new Visitor();
+        }
+
 
         /// <summary>
         /// Convert the string of the properties to a SelectEntry collection
@@ -49,13 +61,14 @@ namespace Cypretex.Data.Filters.Parsers.Linq
         /// <param name="properties"></param>
         /// <param name="prefix"></param>
         /// <returns></returns>
-        private static List<SelectEntry> ParsePropertyNames(string properties, string prefix = "")
+        private List<SelectEntry> ParsePropertyNames(string properties, string prefix = "")
         {
             string pattern = @"((?<complex>[A-Za-z0-9]+)\[(?<props>[[A-Za-z0-9,]+)\]?)+|(?<simple>\w+)";
             List<SelectEntry> ret = new List<SelectEntry>();
-            MatchCollection matches = Regex.Matches(properties, pattern);
+            MatchCollection matches = Regex.Matches(properties.Replace(" ", ""), pattern);
             if (matches.Any())
             {
+
                 matches.ToList().ForEach(o =>
                 {
                     if (!String.IsNullOrEmpty(o.Groups["simple"].Value))
@@ -80,13 +93,14 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             return ret;
         }
 
-        private static Expression Process<T, TReturn>(List<SelectEntry> props, Type sourceType, Type destType, string suffix = "")
+        private Expression Process<T, TReturn>(List<SelectEntry> props, Type sourceType, Type destType, string paramName = null)
             where T : class, new()
             where TReturn : class, new()
         {
+            paramName = String.IsNullOrEmpty(paramName) ? sourceType.Name : paramName;
 
             List<MemberAssignment> bindings = new List<MemberAssignment>();
-            ParameterExpression parameter = Expression.Parameter(sourceType, sourceType.Name);
+            ParameterExpression parameter = Expression.Parameter(sourceType, paramName);
             foreach (SelectEntry entry in props)
             {
                 bindings.AddRange(ProcessEntry(entry, parameter));
@@ -94,13 +108,12 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             NewExpression newData = Expression.New(destType);
             MemberInitExpression initExpression = Expression.MemberInit(newData, bindings);
             Expression finalExpression = MakeLambda(initExpression, parameter);
-            //Console.WriteLine(finalExpression);
             return (Expression<Func<T, TReturn>>)finalExpression;
 
         }
 
 
-        private static IList<MemberAssignment> ProcessEntry(SelectEntry entry, ParameterExpression parameter, string suffix = "")
+        private IList<MemberAssignment> ProcessEntry(SelectEntry entry, ParameterExpression parameter, string suffix = "")
         {
             List<MemberAssignment> bindings = new List<MemberAssignment>();
             Type type = parameter.Type;
@@ -110,7 +123,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
             {
 
 
-                PropertyInfo propertyInfo = parameter.Type.GetProperty(entry.Property);
+                PropertyInfo propertyInfo = Utils.GetPropertyInfo(parameter.Type, entry.Property);
                 MemberExpression originalMember = Expression.Property(parameter, propertyInfo);
 
                 Type childType = propertyInfo.PropertyType;
@@ -126,7 +139,8 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                     // Get the type of the child elements
                     Type elementType = childType.GetGenericArguments()[0];
                     // Create an expression for the parameter
-                    ParameterExpression elementParameter = Expression.Parameter(elementType, elementType.Name);
+                    ParameterExpression elementParameter = Expression.Parameter(elementType, entry.Property + ".Element");
+
                     foreach (SelectEntry e in entry.Childs)
                     {
                         subBindings.AddRange(ProcessEntry(e, elementParameter));
@@ -145,9 +159,12 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                     Expression notNullConditionExpression = Expression.NotEqual(childParameter, Expression.Constant(null, childParameter.Type));
                     Expression trueExpression = MakeLambda(Expression.Convert(toListCall, childParameter.Type), childParameter);
                     Expression falseExpression = MakeLambda(Expression.Constant(null, childParameter.Type), childParameter);
+
                     Expression notNullExpression = Expression.Condition(notNullConditionExpression, trueExpression, falseExpression);
+                    Expression notNullLambda = MakeLambda(Expression.Invoke(notNullExpression, originalMember), childParameter);
+
                     //Invocate the null-check expression
-                    Expression invocation = Expression.Invoke(MakeLambda(Expression.Invoke(notNullExpression, originalMember), childParameter), originalMember);
+                    Expression invocation = Expression.Invoke(notNullLambda, originalMember);
                     // Add the invocation to the bindings on the original element
                     bindings.Add(Expression.Bind(propertyInfo, invocation));
                 }
@@ -179,59 +196,52 @@ namespace Cypretex.Data.Filters.Parsers.Linq
         /// <param name="bindings">The bindings for the initialization</param>
         /// <param name="originalMember">The member on the original (parent) object</param>
         /// <returns></returns>
-        private static Expression CreateNewObject(ParameterExpression parameter, Type objectType, List<MemberAssignment> bindings, MemberExpression originalMember)
+        private Expression CreateNewObject(ParameterExpression parameter, Type objectType, List<MemberAssignment> bindings, MemberExpression originalMember)
         {
             // Create new object of type childType
-            NewExpression newExpression = Expression.New(objectType);
+            NewExpression newExpression = (NewExpression)Expression.New(objectType);
             // Initialize the members of the object
             MemberInitExpression initExpression = Expression.MemberInit(newExpression, bindings);
             // Check for not null original property (avoid the null pointer)
             Expression notNullConditionExpression = Expression.NotEqual(parameter, Expression.Constant(null, objectType));
-            Expression trueExpression = MakeLambda(initExpression, parameter);
-            Expression falseExpression = MakeLambda(Expression.Constant(null, objectType), parameter);
+            Expression trueExpression = initExpression;
+            Expression falseExpression = Expression.Constant(null, objectType);
             Expression notNullExpression = Expression.Condition(notNullConditionExpression, trueExpression, falseExpression);
+
             // Create the lambda
             Expression initLambdaExpression = MakeLambda(notNullExpression, parameter);
+
             // Invoke the initialization expression and the not null expression
-            Expression invocation = Expression.Invoke(Expression.Invoke(initLambdaExpression, originalMember), originalMember);
+            Expression invocation = Expression.Invoke(initLambdaExpression, originalMember);
             return invocation;
         }
 
 
-        private static MemberAssignment AssignProperty(Type type, string propertyName, Expression parameter)
+        private MemberAssignment AssignProperty(Type type, string propertyName, Expression parameter)
         {
-            PropertyInfo propertyInfo = type.GetProperty(propertyName);
+            PropertyInfo propertyInfo = Utils.GetPropertyInfo(type, propertyName);
             MemberExpression originalMember = Expression.Property(parameter, propertyInfo);
             return Expression.Bind(propertyInfo, originalMember);
         }
 
 
-        private static Expression MakeLambda(Expression predicate, params ParameterExpression[] parameters)
+        public Expression MakeLambda(Expression predicate, params ParameterExpression[] parameters)
         {
 
             List<ParameterExpression> resultParameters = new List<ParameterExpression>();
+            //var resultParameterVisitor = new ParameterVisitor();
+
             foreach (ParameterExpression parameter in parameters)
             {
-                var resultParameterVisitor = new ParameterVisitor();
-                resultParameterVisitor.Visit(parameter);
-                resultParameters.Add((ParameterExpression)resultParameterVisitor.Parameter);
+
+                resultParameters.Add(((ParameterExpression)visitor.Visit(parameter)));
             }
-            return Expression.Lambda(predicate, resultParameters);
+            LambdaExpression expression = Expression.Lambda(visitor.Visit(predicate), parameters);
+            visitor.Visit(expression.Body);
+            return visitor.Visit(expression);
         }
 
 
-        private class ParameterVisitor : ExpressionVisitor
-        {
-            public Expression Parameter
-            {
-                get;
-                private set;
-            }
-            protected override Expression VisitParameter(ParameterExpression node)
-            {
-                Parameter = node;
-                return node;
-            }
-        }
+
     }
 }

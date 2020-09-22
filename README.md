@@ -1,6 +1,6 @@
 # NETCORE DYNAMIC FILTER
 
-[![NuGet](https://img.shields.io/nuget/v/Cypretex.Data.Filters?maxAge=259200&style=flat)](https://www.nuget.org/packages/Cypretex.Data.Filters/)
+[![NuGet](https://img.shields.io/nuget/v/Cypretex.Data.Filters?style=flat)](https://www.nuget.org/packages/Cypretex.Data.Filters/)
 
 This package allows you to add dynamic filters to an IQueryable collections, it works with any collection that supports IQueryable (IEnumerable local collections, EF, etc)
 
@@ -65,9 +65,11 @@ The following comparators are available:
 * IN
 * NOT_IN
 
-#### String only comparators
+#### String and collection only comparators
 * IS_NULL_OR_EMPTY
 * IS_NOT_NULL_OR_EMPTY
+
+#### String only comparators
 * CONTAINS
 * NOT_CONTAINS
 * STARTS_WITH
@@ -78,6 +80,7 @@ The following comparators are available:
 * NOT_EMPTY
 * REGEX
 * NOT_REGEX
+
 
 ## Select a subset of properties (since V1.0.1)
 
@@ -161,6 +164,29 @@ foreach (User u in result)
 }
 ```
 
+## Reference child properties on the value of the filter (since v1.0.2)
+Sometimes you may want to compare a field of a object to another property, the filter allows you to reference other fields if you put @propertyName in the value of the filter.
+For example given the following class
+
+```
+class Car {
+    public int CurrentSpeed {get;set;}
+    public int SpeedLimit {get;set;}
+}
+```
+
+You can create a filter to determine if a car's speed is over the limit creating the following filter:
+
+```
+IFilter filter = (new Filter());
+filter.AndWhere(new WhereCondition()
+{
+    Field = "CurrentSpeed",
+    Comparator = WhereComparator.GT,
+    Value = "@SpeedLimit"
+});
+```
+
 ## Usage from Json string
 
 The principal use case for this library is to construct dynamic queries from Json filter representations, for example generated from the frontend in a web app or reading a json file.
@@ -201,9 +227,13 @@ var options = new JsonSerializerOptions
 };
 Filter f = JsonSerializer.Deserialize<Filter>(json, options);
 
+
 //now you can apply to a collection using col.Filter<T>(f)
+```
+```
+Note: You can also filter directly from the IQueryable extension method queryable.Filter<T>(jsonString)
 ```
 
 ## TODO
-- [-] Add a Include filter (Soon, requires support for include, for example EF)
-- [-] Make extensive tests
+- [x] Add a Include filter (Soon, requires support for include, for example EF)
+- [ ] Make extensive tests

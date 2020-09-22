@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cypretex.Data.Filters.Parsers;
 using Cypretex.Data.Filters.Parsers.Linq;
@@ -16,6 +17,12 @@ namespace Cypretex.Data.Filters
         protected IList<IncludeFilter> _with;
 
         protected IList<string> _orderBy;
+
+        /// <summary>
+        /// The name of the parameter for the filter
+        /// </summary>
+        /// <value></value>
+        public string As { get; set; }
 
 
         public WhereCondition Where
@@ -59,6 +66,15 @@ namespace Cypretex.Data.Filters
         public int Skip { get; set; } = 0;
         public int Take { get; set; } = -1;
         public string Properties { get; set; } = "*";
+
+        public static Filter FromJsonString(string json)
+        {
+            return JsonSerializer.Deserialize<Filter>(json, new JsonSerializerOptions()
+            {
+                PropertyNameCaseInsensitive = true,
+                IgnoreNullValues = true,
+            });
+        }
 
     }
 }

@@ -22,6 +22,11 @@ namespace Cypretex.Data.Filters
             });
         }
 
+        public static IQueryable<T> Filter<T>(this IQueryable<T> source, string json) where T : class, new()
+        {
+            return source.Filter<T>(Cypretex.Data.Filters.Filter.FromJsonString(json));
+        }
+
         public static IQueryable<T> Where<T>(this IQueryable<T> source, WhereCondition condition) where T : class, new()
         {
             return source.Filter<T>(condition);
