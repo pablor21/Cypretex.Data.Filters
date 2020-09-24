@@ -154,7 +154,7 @@ namespace Cypretex.Data.Filters.Parsers.Linq
                 else
                 {
                     resultExpression = BuildCondition(parameter, condition);
-                    resultExpression = Expression.Condition(Expression.NotEqual(childParameter, Expression.Constant(null, childParameter.Type)), resultExpression, Expression.Equal(childParameter, Utils.ToStaticParameterExpressionOfType(condition.Value, childParameter.Type)));
+                    //resultExpression = Expression.Condition(Expression.NotEqual(childParameter, Expression.Constant(null, childParameter.Type)), resultExpression, Expression.Equal(childParameter, Utils.ToStaticParameterExpressionOfType(condition.Value, childParameter.Type)));
 
                 }
             }

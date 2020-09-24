@@ -69,21 +69,33 @@ namespace Cypretex.Data.Filters.Tests
         public void TestDatabase()
         {
             IFilter filter = (new Filter());
-            filter.AndWhere(new WhereCondition()
+            // filter.AndWhere(new WhereCondition()
+            // {
+            //     Field = "Documents.Id",
+            //     Comparator = WhereComparator.EQUALS,
+            //     Value = "10"
+            // });
+            //filter.Properties = "Id,Parent,Documents";
+            //filter.Order("-Documents.Id");
+
+            filter.Include(new IncludeFilter()
             {
-                Field = "Id",
-                Comparator = WhereComparator.EQUALS,
-                Value = "@u.Parent.Id"
+                Field = "Documents",
+                With = new List<IncludeFilter>(){
+                    new IncludeFilter(){
+                        Field="Owner"
+                    }
+                }
+
             });
-            filter.Properties = "Id,Parent,Documents";
-            filter.Order("-Id");
 
-            Expression<Func<User, bool>> lambda = x => (x.Parent != null ? x.AnualSalary > x.Parent.AnualSalary : true) && x.Id == 2;
-            Console.WriteLine(lambda);
-            var result = context.Users.Where(lambda);
+
+            // Expression<Func<User, bool>> lambda = x => (x.Parent != null ? x.AnualSalary > x.Parent.AnualSalary : true) && x.Id == 2;
+            // Console.WriteLine(lambda);
+            // var result = context.Users.Where(lambda).Include("Documents").Include("Parent");
             //Console.WriteLine(Expression.Invoke(expression, parameter));
-
-
+            var result = context.Users.Filter(filter).Take(1);
+            //Console.WriteLine(result);
             // var result = users.Where(User => User.Id == 50 && User.Parent != null && User.Parent.Id == 49).Select(User => new User()
             // {
             //     Id = User.Id,

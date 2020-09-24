@@ -19,81 +19,75 @@ PM> Install-Package Cypretex.Data.Filters
 - Supports OrderBy statments
 - Supports Skip and Take for pagination
 - Supports Include filters (EF only) => Soon!
-- Supports Select of subset of properties (deep over the child objects and collections) 
+- Supports Select of subset of properties (deep over the child objects and collections)
 
 ## Available Data Types
 
 The fields to query must be of one of the following types (with the nullable versions):
- * DateTime
- * DateTimeOffset
- * TimeSpan
- * bool
- * byte
- * sbyte
- * short
- * ushort
- * int
- * uint
- * long
- * ulong
- * Guid
- * double
- * float
- * decimal
- * char
- * string
 
+- DateTime
+- DateTimeOffset
+- TimeSpan
+- bool
+- byte
+- sbyte
+- short
+- ushort
+- int
+- uint
+- long
+- ulong
+- Guid
+- double
+- float
+- decimal
+- char
+- string
 
-~~~ 
+```
 You can extend the types adding new data types to AvailableCastTypes in Cypretex.Data.Filters.Parsers.Linq.Utils
-~~~
+```
 
 ## Available comparators
 
 The following comparators are available:
 
-* EQUALS
-* NOT_EQUALS
-* GREATHER_THAN
-* GREATHER_OR_EQUALS
-* LESS_THAN
-* LESS_OR_EQUALS
-* IS_NULL
-* IS_NOT_NULL
-* BETWEEN
-* NOT_BETWEEN
-* IN
-* NOT_IN
+- EQUALS
+- NOT_EQUALS
+- GREATHER_THAN
+- GREATHER_OR_EQUALS
+- LESS_THAN
+- LESS_OR_EQUALS
+- IS_NULL
+- IS_NOT_NULL
+- BETWEEN
+- NOT_BETWEEN
+- IN
+- NOT_IN
 
 #### String and collection only comparators
-* IS_NULL_OR_EMPTY
-* IS_NOT_NULL_OR_EMPTY
+
+- IS_NULL_OR_EMPTY
+- IS_NOT_NULL_OR_EMPTY
 
 #### String only comparators
-* CONTAINS
-* NOT_CONTAINS
-* STARTS_WITH
-* NOT_STARTS_WITH
-* ENDS_WITH
-* NOT_ENDS_WITH
-* EMPTY
-* NOT_EMPTY
-* REGEX
-* NOT_REGEX
 
+- CONTAINS
+- NOT_CONTAINS
+- STARTS_WITH
+- NOT_STARTS_WITH
+- ENDS_WITH
+- NOT_ENDS_WITH
+- EMPTY
+- NOT_EMPTY
+- REGEX
+- NOT_REGEX
 
-## Select a subset of properties (since V1.0.1)
-
-The filter accepts a string for the selection of a subset of properties of objects. The select must be in the form:
-
-```
-string select="Id,Name,Child[Id,ChildName,DeepChild[Id]]"
-```
-The properties of the child objects can be selected with the name of the child property and the subproperties wrapped by [ and ]. ** Ex: Child[Id] **
 
 ## Usage
 
 For the examples we will use the following model clases:
+
 ```
 public class User
 {
@@ -114,6 +108,7 @@ public class Car
 ```
 
 Now we can create a list of users with cars
+
 ```
 var col = new List<User>();
 int carIndex = 1;
@@ -164,7 +159,19 @@ foreach (User u in result)
 }
 ```
 
+## Select a subset of properties (since V1.0.1)
+
+The filter accepts a string for the selection of a subset of properties of objects. The select must be in the form:
+
+```
+string select="Id,Name,Child[Id,ChildName,DeepChild[Id]]"
+```
+
+The properties of the child objects can be selected with the name of the child property and the subproperties wrapped by [ and ]. ** Ex: Child[Id] **
+
+
 ## Reference child properties on the value of the filter (since v1.0.2)
+
 Sometimes you may want to compare a field of a object to another property, the filter allows you to reference other fields if you put @propertyName in the value of the filter.
 For example given the following class
 
@@ -187,6 +194,21 @@ filter.AndWhere(new WhereCondition()
 });
 ```
 
+## Include related models or entitites (Requires EF)
+
+You can include (join) related models using the "with" property on the filter (or with the method "Include"), for example:
+
+```
+filter.Include(new IncludeFilter(){
+    Field="Documents"
+    With=new List<IncludeFilter>(){
+        Field="Owner"
+    }
+})
+```
+
+*The include filter accepts a child includes or .(dot) notation properties (ex: Documents.Owner)*
+
 ## Usage from Json string
 
 The principal use case for this library is to construct dynamic queries from Json filter representations, for example generated from the frontend in a web app or reading a json file.
@@ -194,6 +216,7 @@ The principal use case for this library is to construct dynamic queries from Jso
 You can convert the following json string in the filter using System.Text.Json and apply to a collection.
 
 This is a json representation of a filter
+
 ```
 {
   "select": "Id,Cars[Id,Owner[Id]]"
@@ -209,6 +232,16 @@ This is a json representation of a filter
       }
     ]
   },
+  "with":[
+      {
+          "field":"Documents"
+          "with":[
+              {
+                  "field":"Owner"
+              }
+          ]
+      }
+  ]
   "skip": 20,
   "take": 100
 }
@@ -230,10 +263,12 @@ Filter f = JsonSerializer.Deserialize<Filter>(json, options);
 
 //now you can apply to a collection using col.Filter<T>(f)
 ```
+
 ```
 Note: You can also filter directly from the IQueryable extension method queryable.Filter<T>(jsonString)
 ```
 
 ## TODO
+
 - [x] Add a Include filter (Soon, requires support for include, for example EF)
 - [ ] Make extensive tests

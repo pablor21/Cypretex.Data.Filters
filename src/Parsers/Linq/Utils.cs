@@ -258,8 +258,10 @@ namespace Cypretex.Data.Filters.Parsers.Linq
 
         public static bool IsEnumerable(Type type)
         {
-            return type.IsGenericType
-                && type.GetGenericTypeDefinition() == typeof(IEnumerable<>);
+            // Console.WriteLine(type);
+            // return type.IsGenericType
+            //     && type.GetGenericTypeDefinition() == typeof(IEnumerable<>);
+            return type.GetTypeInfo().ImplementedInterfaces.FirstOrDefault(x => x.Name == "IEnumerable") != null;
         }
 
         public static Type GetIEnumerableImpl(Type type)

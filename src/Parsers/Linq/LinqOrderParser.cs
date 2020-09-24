@@ -65,9 +65,17 @@ namespace Cypretex.Data.Filters.Parsers.Linq
 
             for (int i = 0; i < spl.Length; i++)
             {
-                PropertyInfo pi = Utils.GetPropertyInfo(type, spl[i]);
-                expr = Expression.Property(expr, pi);
-                type = pi.PropertyType;
+                if (Utils.IsEnumerable(type))
+                {
+                    type = Utils.GetEnumerableTypeArg(type);
+                    expr = Expression.Parameter(type, "x" + fieldName);
+                }
+                else
+                {
+                    PropertyInfo pi = Utils.GetPropertyInfo(type, spl[i]);
+                    expr = Expression.Property(expr, pi);
+                    type = pi.PropertyType;
+                }
             }
 
             Type delegateType = typeof(Func<,>).MakeGenericType(typeof(T), type);

@@ -111,6 +111,7 @@ namespace Cypretex.Data.Filters.Tests
             var result = users.Select("Documents.Id").Take(1);
             //Console.WriteLine(result);
             result = users.Filter(filter).Take(1);
+            
             // Console.WriteLine(result);
             result.ToList().ForEach((u) =>
             {

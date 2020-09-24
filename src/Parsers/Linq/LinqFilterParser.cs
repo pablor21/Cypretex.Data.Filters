@@ -13,6 +13,8 @@ namespace Cypretex.Data.Filters.Parsers.Linq
         {
             //parse where clause
             source = LinqWhereExpressionBuilder.Parse<T>(filter.Where, source, filter.As);
+            //parse the include clause
+            source = LinqIncludeParser.Parse<T>(filter.With, source, filter.As);
             //parse the order clause
             source = LinqOrderParser.ParseOrder<T>(filter.OrderBy, source);
             //parse the pagination    

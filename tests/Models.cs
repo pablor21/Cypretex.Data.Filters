@@ -30,15 +30,15 @@ namespace Cypretex.Data.Filters.Tests
         public long? AnualSalary { get; set; }
         public string Phone { get; set; }
         [InverseProperty("Owner")]
-        public ICollection<Document> Documents
-        {
-            get
-            {
-                this._documents = LazyLoader.Load(this, ref _documents);
-                return _documents;
-            }
-            set => _documents = value;
-        }
+        public ICollection<Document> Documents {get;set;}
+        // {
+        //     get
+        //     {
+        //         this._documents = LazyLoader.Load(this, ref _documents);
+        //         return _documents;
+        //     }
+        //     set => _documents = value;
+        // }
 
         public virtual Document PrincipalDocument { get; set; }
 
