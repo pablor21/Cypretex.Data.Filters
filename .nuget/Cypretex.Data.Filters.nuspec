@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
   <metadata>
     <id>Cypretex.Data.Filters</id>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <title>Cypretex.Data.Filters</title>
     <authors>Pablo Ramirez &lt;pablor21@gmail.com&gt;</authors>
     <owners>Pablo Ramirez</owners>
