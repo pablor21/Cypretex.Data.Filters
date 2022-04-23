@@ -1,3 +1,10 @@
+# This project has been moved!
+
+Please check
+
+https://github.com/pablor21/BigBangDotNet.Data.Filters
+
+
 # NETCORE DYNAMIC FILTER
 
 [![NuGet](https://img.shields.io/nuget/v/Cypretex.Data.Filters?style=flat)](https://www.nuget.org/packages/Cypretex.Data.Filters/)
